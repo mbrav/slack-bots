@@ -1,29 +1,31 @@
 ######## Builder Base #######
 FROM golang:1.22-alpine AS builder-base
 
-RUN apk add --no-cache upx
+RUN apk add --no-cache upx \
+  && mkdir /build
+
+WORKDIR /build
 
 ######## Builder 1 #######
 FROM builder-base AS builder1
 
-COPY client/ /client/
+COPY client/ /build/
 
-RUN cd /client \
-  && go mod download \
-  # && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o go-k8s . \
-  && go build -o client . \
+RUN go mod download \
+  # -s and -w linker flags for striping debugging information
+  && GOOS=linux go build -ldflags="-s -w" -o client . \
+  # Addititional UPX compression at the expense of a 10x startup time
   && upx client
 
 ######## Builder 2 #######
 FROM builder-base AS builder2
 
-COPY api/ /api/
+COPY api/ /build/
 
-RUN cd /api \
-  && go mod download \
-  && go build -o api . \
+RUN go mod download \
+  && GOOS=linux go build -ldflags="-s -w" -o api . \
   && upx api
-#
+
 ######## Start a new stage from scratch #######
 FROM alpine:latest
 
@@ -32,20 +34,15 @@ ARG GID="${GID:-1000}"
 ARG UNAME="${UNAME:-mbrav}"
 ARG GNAME="${GNAME:-mbrav}"
 
-RUN apk add --upgrade --latest --no-cache  \
+RUN apk add --upgrade --latest --no-cache \
   ca-certificates \
   && apk clean cache \
   && addgroup -S -g "${GID}" "${GNAME}" \
-  && adduser -S -G "${GNAME}" -u "${UID}" "${UNAME}" -s /bin/ash \
-  && mkdir /app
+  && adduser -S -G "${GNAME}" -u "${UID}" "${UNAME}" -s /bin/ash
 
-COPY --from=builder1 /client/client /usr/local/bin/
-COPY --from=builder2 /api/api /usr/local/bin/
+COPY --from=builder1 /build/client /usr/local/bin/
+COPY --from=builder2 /build/api /usr/local/bin/
 
-RUN chown -R "${GNAME}:${UNAME}" /app
-
-WORKDIR /app
-EXPOSE 3000
+WORKDIR /usr/local/bin/
 USER "${UNAME}"
 
-# CMD ["client"]
