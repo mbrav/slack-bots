@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: slack-bots
+  labels:
+    app: slack-bots
+    tier: frontend
+  annotations:
+    slack-bots.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: slack-bots
+                port:
+                  number: 80

@@ -1,0 +1,31 @@
+kind: Kustomization
+
+# Overide namespace
+namespace: slack-bots
+
+# Configure generation options
+generatorOptions:
+  disableNameSuffixHash: false
+  labels:
+    type: generated
+
+# Generate configmap
+configMapGenerator:
+  - files:
+      - ./files/app-config.yaml
+    name: app-config
+
+# Patches Images
+images:
+  - name: docker.io/mbrav/slack-bots
+    newTag: "latest"
+
+# Specify YAML resources
+resources:
+  - ./0-ns.yaml
+  - ./1-deploy.yaml
+  - ./2-hpa.yaml
+  - ./3-service.yaml
+  - ./4-ingress.yaml
+  - ./5-role.yaml
+  - ./6-role-binding.yaml

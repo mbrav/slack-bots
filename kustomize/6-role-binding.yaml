@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: slack-bots
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: slack-bots
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: slack-bots

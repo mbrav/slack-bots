@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-bots
+  labels:
+    app: slack-bots
+    tier: frontend
+spec:
+  selector:
+    matchLabels:
+      app: slack-bots
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: slack-bots
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: docker.io/mbrav/slack-bots:latest
+          # imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
+          command:
+            - api
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        - name: client
+          image: docker.io/mbrav/slack-bots:latest
+          # imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
+          command:
+            - client
+            - -c
+            - /etc/app-config.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          volumeMounts:
+            - name: app-config
+              subPath: app-config.yaml
+              mountPath: /etc/app-config.yaml
+              readOnly: true
+      volumes:
+        - name: app-config
+          configMap:
+            name: app-config
+            defaultMode: 0444

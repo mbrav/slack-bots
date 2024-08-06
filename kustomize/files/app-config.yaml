@@ -1,0 +1,4 @@
+database:
+  host: test-host
+server:
+  address: test-address
