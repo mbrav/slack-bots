@@ -1,6 +1,7 @@
 # Directories
 API_DIR=./api
 CLIENT_DIR=./client
+MONTAGE_DIR=./montage
 
 # Docker settings
 DOCKER_IMAGE=mbrav/slack-bots:latest
@@ -38,8 +39,25 @@ test:
 mkdir:
 	mkdir -p ./bin
 
-## Build api and client
-build: build-api build-client
+#
+# APPS=api client montage
+#
+# .PHONY: $(APPS)
+#
+# $(APPS) build:
+# 	@echo "Building $@..."
+# 	cd $@ && $(GO_BUILD) -o ../bin/$@
+# 	@command -v upx >/dev/null 2>&1 && upx ./bin/$@ || echo "Skipping compression"
+#
+# $(APPS) run:
+# 	@echo "Running $@..."
+# 	cd $@ && $(GO_RUN) .
+#
+#
+#
+
+# Build api and client
+build: build-api build-client build-montage
 
 build-api:
 	@echo "Building API..."
@@ -51,6 +69,11 @@ build-client:
 	cd $(CLIENT_DIR) && $(GO_BUILD) -o ../bin/client
 	@command -v upx >/dev/null 2>&1 && upx ./bin/client || echo "Skipping compression"
 
+build-montage:
+	@echo "Building Montage..."
+	cd $(MONTAGE_DIR) && $(GO_BUILD) -o ../bin/montage
+	@command -v upx >/dev/null 2>&1 && upx ./bin/montage || echo "Skipping compression"
+
 run-api:
 	@echo "Running API..."
 	cd $(API_DIR) && $(GO_RUN) .
@@ -58,6 +81,10 @@ run-api:
 run-client:
 	@echo "Running Client..."
 	cd $(CLIENT_DIR) && $(GO_RUN) .
+
+run-montage:
+	@echo "Running Client..."
+	CGO_CFLAGS_ALLOW="-Xpreprocessor" cd $(MONTAGE_DIR) && $(GO_RUN) .
 
 ## Build Docker images for api and client
 # docker-build: docker-build-api docker-build-client

@@ -26,6 +26,16 @@ RUN go mod download \
   && GOOS=linux go build -ldflags="-s -w" -o api . \
   && upx api
 
+######## Builder 3 #######
+FROM builder-base AS builder3
+
+COPY montage/ /build/
+
+RUN go mod download \
+  # https://github.com/gographics/imagick?tab=readme-ov-file#build-tags
+  && GOOS=linux go build -tags no_pkgconfig -ldflags="-s -w" -o montage . \
+  && upx montage
+
 ######## Start a new stage from scratch #######
 FROM alpine:latest
 
@@ -36,12 +46,14 @@ ARG GNAME="${GNAME:-mbrav}"
 
 RUN apk add --upgrade --latest --no-cache \
   ca-certificates \
+  imagemagick-dev \
   && apk clean cache \
   && addgroup -S -g "${GID}" "${GNAME}" \
   && adduser -S -G "${GNAME}" -u "${UID}" "${UNAME}" -s /bin/ash
 
 COPY --from=builder1 /build/client /usr/local/bin/
 COPY --from=builder2 /build/api /usr/local/bin/
+COPY --from=builder3 /build/montage /usr/local/bin/
 
 WORKDIR /usr/local/bin/
 USER "${UNAME}"

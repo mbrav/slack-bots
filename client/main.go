@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -29,8 +28,10 @@ func main() {
 
 	client, err := InitKubeConfig(config)
 	if err != nil {
-		os.Exit(1)
+		panic(err)
 	}
+
+	// Run test loop
 	testLoop(client, cliConfig.Namespace)
 }
 
