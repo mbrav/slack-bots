@@ -10,8 +10,6 @@ import (
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
-var wg sync.WaitGroup
-
 func main() {
 	cliConfig := getCLIArgs(&cliConf)
 	appConfig := getAppConfig(cliConf.AppConfig)
@@ -28,18 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for i, img := range appConfig.Images {
-		wg.Add(1)
-		go img.download(
-			&wg,
-			filepath.Join(dirPath, fmt.Sprintf("img-%d.png", i)),
-			appConfig.GrafanaUser,
-			appConfig.GrafanaPassword)
-	}
-
-	// Wait for downlod go routines to complete
-	wg.Wait()
-	fmt.Println("All downloads completed.")
+	downloadImages(*appConfig, dirPath)
 
 	imagick.Initialize()
 	defer imagick.Terminate()
@@ -98,4 +85,26 @@ func main() {
 	}
 
 	fmt.Println("Montage Done")
+}
+
+// Initiates the download of images concurrently.
+func downloadImages(appConfig AppConfig, dirPath string) error {
+	var wg sync.WaitGroup
+	for i, img := range appConfig.Images {
+		wg.Add(1)
+		go func(i int, img Image) {
+			defer wg.Done()
+			if err := img.download(
+				filepath.Join(dirPath, fmt.Sprintf("img-%d.png", i)),
+				appConfig.GrafanaUser,
+				appConfig.GrafanaPassword,
+			); err != nil {
+				log.Printf("Error downloading image %d: %v", i, err)
+			}
+		}(i, img)
+	}
+
+	wg.Wait()
+	fmt.Println("All downloads completed.")
+	return nil
 }
