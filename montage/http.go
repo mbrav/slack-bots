@@ -1,27 +1,29 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 )
 
-func downloadImage(wg *sync.WaitGroup, url_str string, savePath string, username string, password string) {
-	defer wg.Done() // Signal that this goroutine is done
+// Download image
+func (img *Image) download(wg *sync.WaitGroup, savePath string, username string, password string) {
+	// Signal that this goroutine is done
+	defer wg.Done()
 
-	client := &http.Client{}
-
-	fullUrl, _ := url.Parse(url_str)
+	client := &http.Client{Timeout: 60 * time.Second}
+	fullUrl, _ := url.Parse(img.Url)
 
 	// Add image dimensions params to request
 	queryURL := fullUrl.Query()
-	queryURL.Set("width", "2000")
-	queryURL.Set("height", "1000")
+	queryURL.Set("width", strconv.Itoa(img.Width))
+	queryURL.Set("height", strconv.Itoa(img.Height))
 	fullUrl.RawQuery = queryURL.Encode()
 
 	req, err := http.NewRequest("GET", fullUrl.String(), nil)
@@ -30,12 +32,7 @@ func downloadImage(wg *sync.WaitGroup, url_str string, savePath string, username
 		return
 	}
 
-	basicAuth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-	req.Header = http.Header{
-		"Host":          {"www.host.com"},
-		"Authorization": {"Basic " + basicAuth},
-	}
-
+	req.SetBasicAuth(username, password)
 	fmt.Printf("Downloading url %s to %s \n", fullUrl.String(), savePath)
 	r, err := client.Do(req)
 	if err != nil {

@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
@@ -19,55 +22,80 @@ func main() {
 		fmt.Printf("App Config: %+v\n", appConfig)
 	}
 
+	// Get the absolute path of the directory
+	dirPath, err := filepath.Abs("./test/")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i, img := range appConfig.Images {
+		wg.Add(1)
+		go img.download(
+			&wg,
+			filepath.Join(dirPath, fmt.Sprintf("img-%d.png", i)),
+			appConfig.GrafanaUser,
+			appConfig.GrafanaPassword)
+	}
+
+	// Wait for downlod go routines to complete
+	wg.Wait()
+	fmt.Println("All downloads completed.")
+
 	imagick.Initialize()
 	defer imagick.Terminate()
 
 	mw := imagick.NewMagickWand()
 	defer mw.Destroy()
 
-	// err := mw.ReadImage(cliConfig.InputFiles)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// // Get original logo size
-	// width := mw.GetImageWidth()
-	// height := mw.GetImageHeight()
-	//
-	// // Calculate half the size
-	// hWidth := uint(width / 10)
-	// hHeight := uint(height / 10)
-	//
-	// // Resize the image using the Lanczos filter
-	// // The blur factor is a float, where > 1 is blurry, < 1 is sharp
-	// err = mw.ResizeImage(hWidth, hHeight, imagick.FILTER_LANCZOS)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// // Set the compression quality to 95 (high quality = low compression)
-	// err = mw.SetImageCompressionQuality(10)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// if err = mw.WriteImage(cliConfig.OutputFile); err != nil {
-	// 	panic(err)
-	// }
-	//
-	// fmt.Printf("Wrote: %s\n", cliConfig.OutputFile)
-	//
-
-	for i, img := range appConfig.Images {
-		wg.Add(1)
-		go downloadImage(
-			&wg,
-			img.Url,
-			fmt.Sprintf("test/img-%d.png", i),
-			appConfig.GrafanaUser,
-			appConfig.GrafanaPassword)
+	images, err := os.ReadDir(dirPath)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	wg.Wait()
-	fmt.Println("All downloads completed.")
+	for _, f := range images {
+		fullPath := filepath.Join(dirPath, f.Name())
+		fmt.Println(fullPath)
+
+		aw := imagick.NewMagickWand()
+		defer aw.Destroy()
+
+		err = aw.ReadImage(fullPath)
+		if err != nil {
+			log.Fatalf("Failed to read image %s: %v", fullPath, err)
+		}
+
+		err = mw.AddImage(aw)
+		if err != nil {
+			log.Fatalf("Failed to add image %s to montage: %v", fullPath, err)
+		}
+		mw.SetLastIterator()
+	}
+
+	// Configure montage settings
+	dw := imagick.NewDrawingWand()
+	defer dw.Destroy()
+
+	// Set the background color before creating the montage
+	bgColor := imagick.NewPixelWand()
+	bgColor.SetColor(appConfig.MontageBackgroudColor)
+	mw.SetBackgroundColor(bgColor)
+	montage := mw.MontageImage(
+		dw,
+		appConfig.MontageTile,
+		"+0+0",
+		imagick.MONTAGE_MODE_FRAME,
+		"0x0+0+0")
+
+	outFile, err := filepath.Abs(cliConfig.OutputFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Saving Montage to: %s\n", outFile)
+	err = montage.WriteImage(outFile)
+	if err != nil {
+		log.Fatalf("Failed to save montage image: %v", err)
+	}
+
+	fmt.Println("Montage Done")
 }
