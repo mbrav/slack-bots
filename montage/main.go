@@ -34,29 +34,7 @@ func main() {
 	mw := imagick.NewMagickWand()
 	defer mw.Destroy()
 
-	images, err := os.ReadDir(dirPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, f := range images {
-		fullPath := filepath.Join(dirPath, f.Name())
-		fmt.Println(fullPath)
-
-		aw := imagick.NewMagickWand()
-		defer aw.Destroy()
-
-		err = aw.ReadImage(fullPath)
-		if err != nil {
-			log.Fatalf("Failed to read image %s: %v", fullPath, err)
-		}
-
-		err = mw.AddImage(aw)
-		if err != nil {
-			log.Fatalf("Failed to add image %s to montage: %v", fullPath, err)
-		}
-		mw.SetLastIterator()
-	}
+	loadImagesFromDir(mw, dirPath)
 
 	// Configure montage settings
 	dw := imagick.NewDrawingWand()
@@ -107,4 +85,40 @@ func downloadImages(appConfig AppConfig, dirPath string) error {
 	wg.Wait()
 	fmt.Println("All downloads completed.")
 	return nil
+}
+
+// Reads images from the specified directory.
+func readImagesFromDir(dirPath string) ([]os.DirEntry, error) {
+	images, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read images from directory: %v", err)
+	}
+	return images, nil
+}
+
+// Load images from directory into wand
+func loadImagesFromDir(mw *imagick.MagickWand, dirPath string) {
+	images, err := readImagesFromDir(dirPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, f := range images {
+		fullPath := filepath.Join(dirPath, f.Name())
+		fmt.Println(fullPath)
+
+		aw := imagick.NewMagickWand()
+		defer aw.Destroy()
+
+		err = aw.ReadImage(fullPath)
+		if err != nil {
+			log.Fatalf("Failed to read image %s: %v", fullPath, err)
+		}
+
+		err = mw.AddImage(aw)
+		if err != nil {
+			log.Fatalf("Failed to add image %s to montage: %v", fullPath, err)
+		}
+		mw.SetLastIterator()
+	}
 }
