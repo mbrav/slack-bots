@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Client",
+      "type": "go",
+      "request": "launch",
+      "program": "${workspaceFolder}/client",
+      "env": {},
+      "args": [
+        "-c",
+        "${workspaceFolder}/kubeconfig.yaml"
+      ]
+    },
+    {
+      "name": "Launch Montage",
+      "type": "go",
+      "request": "launch",
+      "program": "${workspaceFolder}/montage",
+      "env": {
+        "CGO_CFLAGS_ALLOW": "-Xpreprocessor"
+      },
+      "args": [
+        "-c",
+        "${workspaceFolder}/montage/app.yaml",
+        "-d",
+        "/tmp/grafana-images"
+      ]
+    },
+    {
+      "name": "Launch API",
+      "type": "go",
+      "request": "launch",
+      "program": "${workspaceFolder}/api",
+      "env": {}
+    }
+  ]
+}
